@@ -1,6 +1,7 @@
 import { getCompositions, renderMedia } from "@remotion/renderer";
 import { Configuration, OpenAIApi } from "openai";
 import { debug, getInput } from "@actions/core";
+import { systemPrompt } from "./constants";
 
 const run = async () => {
   const compositionId = "basecomp";
@@ -16,6 +17,7 @@ const run = async () => {
     "What's Changed\n--------------\n\n-   Easier Tailwind installation with `@remotion/tailwind`! by [@rjackson](https://github.com/rjackson) in [#2310](https://github.com/remotion-dev/remotion/pull/2310)\n-   Fix Skia on PNPM and eliminate peer dependency warning by [@JonnyBurger](https://github.com/JonnyBurger) in [#2303](https://github.com/remotion-dev/remotion/pull/2303)\n-   Fix extraneous brackets in `preloadAsset()` by [@thecmdrunner](https://github.com/thecmdrunner) in [#2297](https://github.com/remotion-dev/remotion/pull/2297)\n\nDocs\n----\n\n-   Update legacy link by [@thecmdrunner](https://github.com/thecmdrunner) in [#2301](https://github.com/remotion-dev/remotion/pull/2301)\n\nInternals\n---------\n\n-   Generate Fig autocomplete from Remotion code by [@JonnyBurger](https://github.com/JonnyBurger) in [#2292](https://github.com/remotion-dev/remotion/pull/2292)\n\nFull Changelog: [`v3.3.94...v3.3.95`](https://github.com/remotion-dev/remotion/compare/v3.3.94...v3.3.95)";
   const repositorySlug = getInput("repositorySlug") || "remotion-dev/remotion";
   const releaseTag = getInput("releaseTag") || "v3.3.95";
+  const userMessageContent = `These are the release notes for the latest release for '${repositorySlug}':\n\n\`\`\`md\n${releaseNotes}\n\`\`\`\n\nBased on the instructions and the release notes passed in, the videoProps yaml is:\n\n\`\`\`yaml`;
 
   const completion = await openai.createChatCompletion({
     stop: "```",
@@ -27,12 +29,11 @@ const run = async () => {
     messages: [
       {
         role: "system",
-        content:
-          "You are a github release notes video creator ai, which has been prompted to convert the following release-notes to digestable information in the form of a video. You don't actually do the video creation part, but just create input props in the form of yaml for the video to be created from. \n\nWhen passed in release notes:\n- Create at most 5 top changes, each with the following properties:\n    - Title: A title describing the change (e.g. 'New Design Theme'). Use at most 7 words\n    - Description: A short description about the change (e.g. 'Updated the button styles, touched up some colors, and made the ui look a lot nicer'). Please try keeping it shorter than 25 words.\n- A long list of all the changes\n\nRemember:\n- !!!Only output nothing except valid yaml. No backticks, no syntax breaking.\n- Only include text in the yaml strings. No markdown or links. The video should be self-sufficient and shouldn't ask the user to refer anywhere else.\n- End your response with ``` (triple backticks)\n\nThe yaml should follow the following zod schema when converted to json:\n\n```ts\nconst videoPropsSchema = z.object({\n    topChanges: z.array(z.object({title: string, description: string})).minLength(1),\n    allChanges: z.array(string()).minLength(1).maxLength(25)\n})\n```\n",
+        content: systemPrompt,
       },
       {
         role: "user",
-        content: `These are the release notes for the latest release for 'https://github.com/Vercel/nextjs':\n\n\`\`\`md\n${releaseNotes}\n\`\`\`\n\nBased on the instructions and the release notes passed in, the videoProps yaml is:\n\n\`\`\`yaml`,
+        content: userMessageContent,
       },
     ],
   });
@@ -44,14 +45,16 @@ const run = async () => {
   //   // If you have a Webpack override, make sure to add it here
   //   webpackOverride,
   // });
-  const bundleLocation = "https://lucky-melomakarona-6c5b57.netlify.app";
+  const bundleLocation = "https://rainbow-conkies-f46e58.netlify.app";
 
   // // Replace backtick with single quote
   const content = (completion.data.choices[0].message?.content ?? "").replace(
     /`/g,
     "'"
   );
-  debug("Got content from OpenAI: " + content);
+  debug("Here is the user message content\n" + userMessageContent);
+  debug("Here is the system prompt\n" + systemPrompt);
+  debug("Got content from OpenAI: \n" + content);
   //   const content = `topChanges:
   //   - title: Easier Tailwind installation
   //     description: By @rjackson
